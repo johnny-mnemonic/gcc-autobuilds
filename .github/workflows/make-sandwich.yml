@@ -1,0 +1,44 @@
+name: 'make-sandwich'
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    # Run Friday, Saturday, Sunday and Monday at 6 AM UTC
+    - cron: '0 6 * * 0,1,5,6'
+  workflow_dispatch:
+
+jobs:
+  build_toolchain_parts:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          path: toolchain-autobuilds
+
+      - name: build
+        run: |
+          # prepare env ########################################################
+          BASE_DIR=$( pwd )
+          TOOLS_DIR="${BASE_DIR}/toolchain-autobuilds/tools"
+          CONFIG_DIR="${BASE_DIR}/toolchain-autobuilds/config"
+          PAST_BUILDS="${BASE_DIR}/past-builds"
+          SNAPSHOTS="${BASE_DIR}/snapshots"
+          T2_TEMPLATE_BASE_DIR="${BASE_DIR}/toolchain-autobuilds/config/t2"
+          T2_ROOT="${BASE_DIR}/t2-minimal"
+          BUILD_LOGS="${BASE_DIR}/build-logs"
+          export TOOLS_DIR CONFIG_DIR PAST_BUILDS SNAPSHOTS T2_TEMPLATE_BASE_DIR T2_ROOT BUILD_LOGS
+          PATH=${TOOLS_DIR}:${PATH}
+          # exports ############################################################
+          echo "BUILD_LOGS=${BUILD_LOGS}" >> $GITHUB_ENV
+          # run build ##########################################################
+          workflow.bash
+
+      - if: '!cancelled()'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: ${{ env.BUILD_LOGS }}/
+          compression-level: 9
